@@ -1,7 +1,9 @@
 from curl_cffi import requests
 from models import JSONResponseModel
+from pymongo import MongoClient
 import logging
 from rich.logging import RichHandler
+
 
 FORMAT = "%(message)s"
 logging.basicConfig(
@@ -58,9 +60,17 @@ def api_request(session: requests.session, url: str, page: int):
         return JSONResponseModel()
 
 
+def init_db():
+    client = MongoClient("localhost:27017")
+    db = client['FishUSA']
+    collection = db['products']
+    return collection
+
+
 def main():
     url = 'https://vw1136.a.searchspring.io/api/search/search.json'
     session = create_session()
+    collection = init_db()
     page_resp = api_request(session, url, 1)
     if page_resp.pagination is None:
         raise Exception("no pages found")
@@ -74,6 +84,8 @@ def main():
         else:
             for result in response.results:
                 log.info(result.name)
+                collection.replace_one(
+                    {"id": result.id}, result.model_dump(), upsert=True)
 
 
 if __name__ == "__main__":
